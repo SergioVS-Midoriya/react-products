@@ -7,6 +7,8 @@ import {
   searchProducts,
   getCategories,
   getProductsByCategory,
+  createProduct,
+  updateProduct,
   deleteProduct,
 } from "../services/productService";
 
@@ -19,8 +21,15 @@ function Products() {
   const [category, setCategory] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [editingId, setEditingId] = useState(null);
 
   const limit = 12;
+
+  const [form, setForm] = useState({
+    title: "",
+    price: "",
+    description: "",
+  });
 
   useEffect(() => {
     loadProducts();
@@ -129,16 +138,79 @@ function Products() {
     }
   }
 
+  function handleChange(event) {
+    const { name, value } = event.target;
+
+    setForm({
+      ...form,
+      [name]: value,
+    });
+  }
+
+  function resetForm() {
+    setEditingId(null);
+
+    setForm({
+      title: "",
+      price: "",
+      description: "",
+    });
+  }
+
+  async function handleCreate(event) {
+    event.preventDefault();
+
+    try {
+      const newProduct = await createProduct({
+        ...form,
+        price: Number(form.price),
+      });
+
+      setProducts([newProduct, ...products]);
+
+      resetForm();
+    } catch (error) {
+      setError(error.message);
+    }
+  }
+
   function handleEdit(product) {
-    console.log("Editar:", product);
+    setEditingId(product.id);
+
+    setForm({
+      title: product.title,
+      price: product.price,
+      description: product.description,
+    });
+  }
+
+  async function handleUpdate(event) {
+    event.preventDefault();
+
+    try {
+      const updated = await updateProduct(editingId, {
+        ...form,
+        price: Number(form.price),
+      });
+
+      setProducts(
+        products.map((product) =>
+          product.id === editingId ? { ...product, ...updated } : product
+        )
+      );
+
+      resetForm();
+    } catch (error) {
+      setError(error.message);
+    }
   }
 
   if (loading) {
-    return <p>Cargando productos...</p>;
+    return <p className="status">Cargando productos...</p>;
   }
 
   if (error) {
-    return <p>{error}</p>;
+    return <p className="status error">{error}</p>;
   }
 
   return (
@@ -156,7 +228,11 @@ function Products() {
         <button type="submit">Buscar</button>
       </form>
 
-      <select value={category} onChange={handleCategory}>
+      <select
+        className="category-select"
+        value={category}
+        onChange={handleCategory}
+      >
         <option value="">Todas las categorías</option>
 
         {categories.map((item) => {
@@ -170,6 +246,48 @@ function Products() {
           );
         })}
       </select>
+
+      <h2>{editingId ? "Editar producto" : "Agregar producto"}</h2>
+
+      <form
+        onSubmit={editingId ? handleUpdate : handleCreate}
+        className="product-form"
+      >
+        <input
+          type="text"
+          name="title"
+          placeholder="Nombre"
+          value={form.title}
+          onChange={handleChange}
+          required
+        />
+
+        <input
+          type="number"
+          name="price"
+          placeholder="Precio"
+          value={form.price}
+          onChange={handleChange}
+          required
+        />
+
+        <textarea
+          name="description"
+          placeholder="Descripción"
+          value={form.description}
+          onChange={handleChange}
+        />
+
+        <div className="form-actions">
+          <button type="submit">{editingId ? "Actualizar" : "Guardar"}</button>
+
+          {editingId && (
+            <button type="button" onClick={resetForm}>
+              Cancelar
+            </button>
+          )}
+        </div>
+      </form>
 
       <ProductList
         products={products}
